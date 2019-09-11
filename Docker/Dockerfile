@@ -39,33 +39,32 @@ RUN echo -e 'providers {\n\
 RUN rm /bin/sh && ln -sf /bin/bash /bin/sh
 
 # WORKDIR
-WORKDIR /baklava
+WORKDIR /lokum
 
 # Copy custom inventory builder
+COPY inventory_builder /lokum/inventory_builder
 
-COPY inventory_builder /baklava/inventory_builder
-
-# clone kubespray repo
-RUN git clone https://github.com/kubernetes-incubator/kubespray.git && \
-    cd kubespray && git checkout 3f62492a15c96acae93e7571231f513a58f23f1f && cd ..
+# clone emma repo
+# RUN git clone https://github.com/nlesc-sherlock/emma.git && \
+#     pwd
+RUN git clone https://github.com/fdiblen/emma.git && cd emma && git checkout lokum_fixes
 
 # install kubespray requirements
 RUN pip2 install --upgrade pip && \
     pip2 uninstall ansible && \
-    cd /baklava/kubespray && pip2 install -r requirements.txt && \
-    cd /baklava/kubespray/contrib/inventory_builder && pip3 install -r requirements.txt && \
+    cd /lokum/inventory_builder && pip3 install -r requirements.txt && \
     pip2 install ansible-modules-hashivault && \
-    cd /baklava
+    cd /lokum
 
 # set environment variables
-ENV BAKLAVA_HOME /baklava
-ENV BAKLAVA_CONFIG /baklava/config
+ENV LOKUM_HOME /lokum
+ENV LOKUM_CONFIG /lokum/config
 #ENV ANSIBLE_LIBRARY /usr/lib/python2.7/site-packages/ansible/modules
 #ENV ANSIBLE_MODULE_UTILS /usr/lib/python2.7/site-packages/ansible/module_utils
-#export PATH=$PATH:/baklava/kubespray/library
+#export PATH=$PATH:/lokum/kubespray/library
 
 
-COPY scripts/baklava-init.sh /usr/local/bin/
-RUN ln -s usr/local/bin/baklava-init.sh / # back compatibility
-ENTRYPOINT ["baklava-init.sh"]
+COPY scripts/lokum-init.sh /usr/local/bin/
+RUN ln -s usr/local/bin/lokum-init.sh / # back compatibility
+ENTRYPOINT ["lokum-init.sh"]
 CMD ["deploy"]

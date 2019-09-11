@@ -6,65 +6,75 @@ provider "opennebula" {
         password = "${var.one_password}"
 }
 
-data "template_file" "one-kube-template" {
+data "template_file" "lokum-template" {
         template = "${file("opennebula_k8s.tpl")}"
 }
 
-resource "opennebula_template" "one-kube-template" {
-        name = "k8s-template"
-        description = "${data.template_file.one-kube-template.rendered}"
+resource "opennebula_template" "lokum-template" {
+        name = "lokum-template"
+        description = "${data.template_file.lokum-template.rendered}"
         permissions = "600"
 }
 
-resource "opennebula_vm" "kube-node" {
-        name = "node${count.index+1}"
-        template_id = "${opennebula_template.one-kube-template.id}"
+resource "opennebula_vm" "lokum-node" {
+        name = "lokum${count.index+1}"
+        template_id = "${opennebula_template.lokum-template.id}"
         permissions = "600"
         count = "${var.number_of_nodes}"
 }
 
-resource "null_resource" "kubernetes" {
+resource "null_resource" "lokumcluster" {
 
         provisioner "local-exec" {
-                command = "ansible-playbook /baklava/config/kubespray_addons.yml"
+                command = "/bin/bash -c \"declare -a IPS=(${join(" ", opennebula_vm.lokum-node.*.ip)})\""
         }
 
         provisioner "local-exec" {
-                command = "cp -rfp /baklava/kubespray/inventory/sample ${var.DEPLOY_FOLDER}/${var.cluster_name}"
+                command = "CONFIG_FILE=${var.DEPLOY_FOLDER}/hosts.yaml python3 /lokum/inventory_builder/inventory.py ${join(" ", opennebula_vm.lokum-node.*.ip)}"
         }
 
         provisioner "local-exec" {
-                command = "/bin/bash -c \"declare -a IPS=(${join(" ", opennebula_vm.kube-node.*.ip)})\""
+                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -b --become-user=root -i ${var.DEPLOY_FOLDER}/hosts.yaml /lokum/config/ansible_playbooks/update_hosts_file.yml --private-key=${var.DEPLOY_FOLDER}/id_rsa_lokum_root.key -v"
         }
 
         provisioner "local-exec" {
-                command = "CONFIG_FILE=${var.DEPLOY_FOLDER}/${var.cluster_name}/hosts.yaml python3 /baklava/inventory_builder/inventory.py ${join(" ", opennebula_vm.kube-node.*.ip)}"
+                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -b --become-user=root -i ${var.DEPLOY_FOLDER}/hosts.yaml /lokum/config/ansible_playbooks/set_ssh_keys.yml --private-key=${var.DEPLOY_FOLDER}/id_rsa_lokum_root.key -v"
         }
 
         provisioner "local-exec" {
-                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ${var.DEPLOY_FOLDER}/${var.cluster_name}/hosts.yaml /baklava/config/firewall.yml --private-key=/baklava/id_rsa_baklava"
+                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ${var.DEPLOY_FOLDER}/hosts.yaml /lokum/config/ansible_playbooks/emma_fixes.yml --private-key=${var.DEPLOY_FOLDER}/id_rsa_lokum_root.key -v"
         }
 
         provisioner "local-exec" {
-                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ${var.DEPLOY_FOLDER}/${var.cluster_name}/hosts.yaml /baklava/kubespray/cluster.yml --private-key=/baklava/id_rsa_baklava -v"
+                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ${var.DEPLOY_FOLDER}/hosts.yaml /lokum/config/ansible_playbooks/firewall.yml --private-key=${var.DEPLOY_FOLDER}/id_rsa_lokum_root.key -v"
         }
-
-#        provisioner "local-exec" {
-#                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ${var.DEPLOY_FOLDER}/${var.cluster_name}/hosts.yaml /baklava/kubespray/contrib/metallb/metallb.yml --private-key=/baklava/id_rsa_baklava -v"
-#        }
 
         provisioner "local-exec" {
-                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False; cd /baklava/kubespray; ansible-playbook -b --become-user=root -i ${var.DEPLOY_FOLDER}/${var.cluster_name}/hosts.yaml --user=root /baklava/kubespray/contrib/network-storage/heketi/heketi.yml --extra-vars 'kube_config_dir=/etc/kubernetes bin_dir=/usr/local/bin' --private-key=/baklava/id_rsa_baklava -v"
+                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False; cd /lokum; ansible all -b --become-user=root -i ${var.DEPLOY_FOLDER}/hosts.yaml -m ping --private-key=${var.DEPLOY_FOLDER}/id_rsa_lokum_root.key -v"
         }
 
+        provisioner "local-exec" {
+                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False; cd /lokum; ansible all -b --become-user=ubuntu -i ${var.DEPLOY_FOLDER}/hosts.yaml -m ping --private-key=${var.DEPLOY_FOLDER}/id_rsa_lokum_root.key -v"
+        }
 
+        provisioner "local-exec" {
+                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False; cd /lokum/emma; ansible-playbook -i ${var.DEPLOY_FOLDER}/hosts.yaml -e datadisk=/dev/vdb -e host_name=${var.DEPLOY_FOLDER}/id_rsa_lokum_ubuntu prepcloud-playbook.yml --private-key=${var.DEPLOY_FOLDER}/id_rsa_lokum_ubuntu.key -v"
+        }
+
+        provisioner "local-exec" {
+                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False; export CLUSTER_NAME=lokum; cd /lokum/emma/vars; sh ./create_vars_files.sh; cd /lokum/emma; ansible-playbook -i ${var.DEPLOY_FOLDER}/hosts.yaml --extra-vars 'CLUSTER_NAME=lokum' install_platform_light.yml --tags 'common,minio,hadoop,spark,dask,jupyterhub' --skip-tags 'pdal,geotrellis,cassandra,geomesa' --private-key=${var.DEPLOY_FOLDER}/id_rsa_lokum_ubuntu.key -v"
+        }
+
+        provisioner "local-exec" {
+                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False; export CLUSTER_NAME=lokum; cd /lokum/emma/vars; sh ./create_vars_files.sh; cd /lokum/emma; ansible-playbook -i ${var.DEPLOY_FOLDER}/hosts.yaml --extra-vars 'CLUSTER_NAME=lokum' start_platform.yml --skip-tags 'cassandra' --private-key=${var.DEPLOY_FOLDER}/id_rsa_lokum_ubuntu.key -v"
+        }
 }
 
-output "kube-node-vm_id" {
-        value = "${opennebula_vm.kube-node.*.id}"
+output "lokum-node-vm_id" {
+        value = "${opennebula_vm.lokum-node.*.id}"
 }
 
-output "kube-node-vm_ip" {
-        value = "${opennebula_vm.kube-node.*.ip}"
+output "lokum-node-vm_ip" {
+        value = "${opennebula_vm.lokum-node.*.ip}"
 }
 

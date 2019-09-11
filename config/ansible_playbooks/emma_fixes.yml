@@ -1,0 +1,7 @@
+---
+- hosts: all
+  # remote_user: root
+  # become: true
+  tasks:
+    # - name: Add apt key for sbt
+    #   apt_key: keyserver=hkp://keyserver.ubuntu.com:80 id=A278B781FE4B2BDA

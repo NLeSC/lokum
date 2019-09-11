@@ -4,6 +4,7 @@ terraform.tfstate*
 .terraform
 
 deployment/*
+Docker/inventory_builder/hosts.yaml
 
 */terraform.tfstate* 
 */*.retry 

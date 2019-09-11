@@ -41,12 +41,21 @@ import os
 import re
 import sys
 
-ROLES = ['all', 'kube-master', 'kube-node', 'etcd', 'k8s-cluster',
-         'calico-rr', 'heketi-node']
+ROLES = ['all', 'docker-swarm-manager', 'docker-swarm-worker', 'docker',
+'glusterfs-primary', 'glusterfs-second', 'glusterfs',
+'minio-server', 'minio-worker', 'minio',
+'hadoop-namenode', 'hadoop-resourcemanager', 'hadoop-datanode', 'hadoop',
+'spark-master', 'spark-worker', 'spark',
+'cassandra-seeds', 'cassandra-nodes', 'cassandra',
+'jupyterhub', 
+'dask-scheduler', 'dask-worker', 'dask']
+
 PROTECTED_NAMES = ROLES
+
 AVAILABLE_COMMANDS = ['help', 'print_cfg', 'print_ips', 'load']
 _boolean_states = {'1': True, 'yes': True, 'true': True, 'on': True,
                    '0': False, 'no': False, 'false': False, 'off': False}
+
 yaml = YAML()
 yaml.preserve_quotes = True
 yaml.Representer.add_representer(OrderedDict, yaml.Representer.represent_dict)
@@ -59,21 +68,21 @@ def get_var_as_bool(name, default):
 # Configurable as shell vars start
 
 
-CONFIG_FILE = os.environ.get("CONFIG_FILE", "./inventory/sample/hosts.yaml")
+CONFIG_FILE = os.environ.get("CONFIG_FILE", "./hosts.yaml")
 # Reconfigures cluster distribution at scale
-SCALE_THRESHOLD = int(os.environ.get("SCALE_THRESHOLD", 50))
-MASSIVE_SCALE_THRESHOLD = int(os.environ.get("SCALE_THRESHOLD", 200))
-
 DEBUG = get_var_as_bool("DEBUG", True)
 HOST_PREFIX = os.environ.get("HOST_PREFIX", "node")
 
 HEKETI_ADMIN_KEY = os.environ.get("HEKETI_ADMIN_KEY", 'esciencerocks')
 HEKETI_USER_KEY = os.environ.get("HEKETI_USER_KEY", 'esciencerocks')
 
-# Configurable as shell vars end
+
+CASSANDRA_SEEDS_COUNT = os.environ.get("CASSANDRA_SEEDS_COUNT", 2)
+
+# Configurable as shell vars end 
 
 
-class KubesprayInventory(object):
+class LokumInventory(object):
 
     def __init__(self, changed_hosts=None, config_file=None):
         self.config_file = config_file
@@ -95,20 +104,23 @@ class KubesprayInventory(object):
             changed_hosts = self.range2ips(changed_hosts)
             self.hosts = self.build_hostnames(changed_hosts)
             self.purge_invalid_hosts(self.hosts.keys(), PROTECTED_NAMES)
-            all_vars = {'heketi_admin_key': HEKETI_ADMIN_KEY, 'heketi_user_key': HEKETI_USER_KEY}
+
+            # all_vars = {'heketi_admin_key': HEKETI_ADMIN_KEY, 'heketi_user_key': HEKETI_USER_KEY}
+            all_vars = {}
+
             self.set_all(hosts = self.hosts, vars = all_vars)
-            self.set_k8s_cluster()
-            etcd_hosts_count = 3 if len(self.hosts.keys()) >= 3 else 1
-            self.set_etcd(list(self.hosts.keys())[:etcd_hosts_count])
-            if len(self.hosts) >= SCALE_THRESHOLD:
-                self.set_kube_master(list(self.hosts.keys())[etcd_hosts_count:5])
-            else:
-                self.set_kube_master(list(self.hosts.keys())[:2])
-            self.set_kube_node(self.hosts.keys())
-            if len(self.hosts) >= SCALE_THRESHOLD:
-                self.set_calico_rr(list(self.hosts.keys())[:etcd_hosts_count])
-            heketi_vars = {'disk_volume_device_1': "/dev/vdb"}
-            self.set_heketi(hosts = self.hosts, vars = heketi_vars)
+
+            self.set_docker(list(self.hosts.keys()))
+            self.set_glusterfs(list(self.hosts.keys()))
+            self.set_minio(list(self.hosts.keys()))            
+            self.set_hadoop(list(self.hosts.keys()))            
+            self.set_spark(list(self.hosts.keys()))            
+            self.set_cassandra(list(self.hosts.keys()))            
+            self.set_jupyterhub(list(self.hosts.keys()))            
+            self.set_dask(list(self.hosts.keys()))            
+
+            # heketi_vars = {'disk_volume_device_1': "/dev/vdb"}
+            # self.set_heketi(hosts = self.hosts, vars = heketi_vars)
 
         else:  # Show help if no options
             self.show_help()
@@ -248,7 +260,7 @@ class KubesprayInventory(object):
 
     def purge_invalid_hosts(self, hostnames, protected_names=[]):
         for role in self.yaml_config['all']['children']:
-            if role != 'k8s-cluster' and self.yaml_config['all']['children'][role]['hosts']:  # noqa
+            if role != 'lokum-cluster' and self.yaml_config['all']['children'][role]['hosts']:  # noqa
                 all_hosts = self.yaml_config['all']['children'][role]['hosts'].copy()  # noqa
                 for host in all_hosts.keys():
                     if host not in hostnames and host not in protected_names:
@@ -269,7 +281,7 @@ class KubesprayInventory(object):
             if self.yaml_config['all']['hosts'] is None:
                 self.yaml_config['all']['hosts'] = {host: None}
             self.yaml_config['all']['hosts'][host] = opts
-        elif group != 'k8s-cluster:children':
+        elif group != 'lokum-cluster:children':
             if self.yaml_config['all']['children'][group]['hosts'] is None:
                 self.yaml_config['all']['children'][group]['hosts'] = {
                     host: None}
@@ -283,9 +295,62 @@ class KubesprayInventory(object):
         else:
             self.yaml_config['all']['children'][group]['vars'][var] = str(opts)
 
-    def set_kube_master(self, hosts):
+    def set_docker(self, hosts, vars = None):
+        self.add_host_to_group('docker-swarm-manager', hosts[0])        
         for host in hosts:
-            self.add_host_to_group('kube-master', host)
+            self.add_host_to_group('docker-swarm-worker', host)
+        docker = {'children': {'docker-swarm-manager': None, 'docker-swarm-worker': None}}
+        self.yaml_config['all']['children']['docker'] = docker
+
+    def set_glusterfs(self, hosts, vars = None):
+        self.add_host_to_group('glusterfs-primary', hosts[0])        
+        for host in hosts:
+            self.add_host_to_group('glusterfs-second', host)
+        glusterfs = {'children': {'glusterfs-primary': None, 'glusterfs-second': None}}
+        self.yaml_config['all']['children']['glusterfs'] = glusterfs
+
+    def set_minio(self, hosts, vars = None):
+        self.add_host_to_group('minio-server', hosts[0])        
+        for host in hosts:
+            self.add_host_to_group('minio-worker', host)
+        minio = {'children': {'minio-server': None, 'minio-worker': None}}
+        self.yaml_config['all']['children']['minio'] = minio
+
+    def set_hadoop(self, hosts, vars = None):
+        self.add_host_to_group('hadoop-namenode', hosts[0])      
+        self.add_host_to_group('hadoop-resourcemanager', hosts[0])              
+        for host in hosts:
+            self.add_host_to_group('hadoop-datanode', host)
+        hadoop = {'children': {'hadoop-namenode': None, 'hadoop-datanode': None}}
+        self.yaml_config['all']['children']['hadoop'] = hadoop
+
+    def set_spark(self, hosts, vars = None):
+        self.add_host_to_group('spark-master', hosts[0])
+        for host in hosts:
+            self.add_host_to_group('spark-worker', host)
+        spark = {'children': {'spark-master': None, 'spark-worker': None}}
+        self.yaml_config['all']['children']['spark'] = spark
+
+    def set_cassandra(self, hosts, vars = None):       
+        for host in list(self.hosts.keys())[:CASSANDRA_SEEDS_COUNT]:
+            self.add_host_to_group('cassandra-seeds', host)        
+        for host in hosts:
+            self.add_host_to_group('cassandra-nodes', host)
+        cassandra = {'children': {'cassandra-seeds': None, 'cassandra-nodes': None}}
+        self.yaml_config['all']['children']['cassandra'] = cassandra
+
+    def set_jupyterhub(self, hosts, vars = None):
+        if vars is not None:
+            for var, opts in vars.items():
+                self.add_var_to_group('jupyterhub', var, opts)        
+        self.add_host_to_group('jupyterhub', hosts[0])
+
+    def set_dask(self, hosts, vars = None):
+        self.add_host_to_group('dask-scheduler', hosts[0])
+        for host in hosts:
+            self.add_host_to_group('dask-worker', host)
+        dask = {'children': {'dask-scheduler': None, 'dask-worker': None}}
+        self.yaml_config['all']['children']['dask'] = dask
 
     def set_all(self, hosts, vars = None):
         if vars is not None:
@@ -293,49 +358,6 @@ class KubesprayInventory(object):
                 self.add_var_to_group('all', var, opts)
         for host, opts in hosts.items():
             self.add_host_to_group('all', host, opts)
-
-    def set_k8s_cluster(self):
-        k8s_cluster = {'children': {'kube-master': None, 'kube-node': None}}
-        self.yaml_config['all']['children']['k8s-cluster'] = k8s_cluster
-
-    def set_calico_rr(self, hosts):
-        for host in hosts:
-            if host in self.yaml_config['all']['children']['kube-master']:
-                self.debug("Not adding {0} to calico-rr group because it "
-                           "conflicts with kube-master group".format(host))
-                continue
-            if host in self.yaml_config['all']['children']['kube-node']:
-                self.debug("Not adding {0} to calico-rr group because it "
-                           "conflicts with kube-node group".format(host))
-                continue
-            self.add_host_to_group('calico-rr', host)
-
-    def set_kube_node(self, hosts):
-        for host in hosts:
-            if len(self.yaml_config['all']['hosts']) >= SCALE_THRESHOLD:
-                if host in self.yaml_config['all']['children']['etcd']['hosts']:  # noqa
-                    self.debug("Not adding {0} to kube-node group because of "
-                               "scale deployment and host is in etcd "
-                               "group.".format(host))
-                    continue
-            if len(self.yaml_config['all']['hosts']) >= MASSIVE_SCALE_THRESHOLD:  # noqa
-                if host in self.yaml_config['all']['children']['kube-master']['hosts']:  # noqa
-                    self.debug("Not adding {0} to kube-node group because of "
-                               "scale deployment and host is in kube-master "
-                               "group.".format(host))
-                    continue
-            self.add_host_to_group('kube-node', host)
-
-    def set_etcd(self, hosts):
-        for host in hosts:
-            self.add_host_to_group('etcd', host)
-
-    def set_heketi(self, hosts, vars = None):
-        if vars is not None:
-            for var, opts in vars.items():
-                self.add_var_to_group('heketi-node', var, opts)
-        for host in hosts:
-            self.add_host_to_group('heketi-node', host)
 
     def load_file(self, files=None):
         '''Directly loads JSON to inventory.'''
@@ -354,7 +376,9 @@ class KubesprayInventory(object):
                 raise Exception("Cannot read %s as JSON, or CSV", filename)
 
             self.ensure_required_groups(ROLES)
-            self.set_k8s_cluster()
+
+            # self.set_lokum_cluster()
+
             for group, hosts in data.items():
                 self.ensure_required_groups([group])
                 for host, opts in hosts.items():
@@ -395,10 +419,8 @@ Delete a host by id: inventory.py -node1
 
 Configurable env vars:
 DEBUG                   Enable debug printing. Default: True
-CONFIG_FILE             File to write config to Default: ./inventory/sample/hosts.yaml
+CONFIG_FILE             File to write config to Default: ./hosts.yaml
 HOST_PREFIX             Host prefix for generated hosts. Default: node
-SCALE_THRESHOLD         Separate ETCD role if # of nodes >= 50
-MASSIVE_SCALE_THRESHOLD Separate K8s master and ETCD if # of nodes >= 200
 '''  # noqa
         print(help_text)
 
@@ -415,7 +437,7 @@ MASSIVE_SCALE_THRESHOLD Separate K8s master and ETCD if # of nodes >= 200
 def main(argv=None):
     if not argv:
         argv = sys.argv[1:]
-    KubesprayInventory(argv, CONFIG_FILE)
+    LokumInventory(argv, CONFIG_FILE)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,22 @@
+---
+- hosts: all
+  # remote_user: root
+  # become: true
+  tasks:
+  - name: mkdir /root/.ssh
+    file: name=/root/.ssh owner=root state=directory
+  - name: Copy private ssh key for root user
+    copy: src=/lokum/id_rsa_lokum_root.key dest=/root/.ssh/id_rsa owner=root mode=go-rw
+  - name: Copy public ssh key for root user
+    copy: src=/lokum/id_rsa_lokum_root.key.pub dest=/root/.ssh/id_rsa.pub owner=root
+  - name: Copy authorized keys for root user
+    copy: src=/lokum/id_rsa_lokum_root.key.pub dest=/root/.ssh/authorized_keys owner=root
+
+  - name: mkdir /home/ubuntu/.ssh
+    file: name=/home/ubuntu/.ssh owner=ubuntu state=directory
+  - name: Copy private ssh key for ubuntu user
+    copy: src=/lokum/id_rsa_lokum_ubuntu.key dest=/home/ubuntu/.ssh/id_rsa owner=ubuntu mode=go-rw
+  - name: Copy public ssh key for ubuntu user
+    copy: src=/lokum/id_rsa_lokum_ubuntu.key.pub dest=/home/ubuntu/.ssh/id_rsa.pub owner=ubuntu
+  - name: Copy authorized keys for ubuntu user
+    copy: src=/lokum/id_rsa_lokum_ubuntu.key.pub dest=/home/ubuntu/.ssh/authorized_keys owner=ubuntu
