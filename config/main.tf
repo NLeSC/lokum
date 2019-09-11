@@ -62,11 +62,11 @@ resource "null_resource" "lokumcluster" {
         }
 
         provisioner "local-exec" {
-                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False; export CLUSTER_NAME=lokum; cd /lokum/emma/vars; sh ./create_vars_files.sh; cd /lokum/emma; ansible-playbook -i ${var.DEPLOY_FOLDER}/hosts.yaml --extra-vars 'CLUSTER_NAME=lokum' install_platform_light.yml --tags 'common,minio,hadoop,spark,dask,jupyterhub' --skip-tags 'pdal,geotrellis,cassandra,geomesa' --private-key=${var.DEPLOY_FOLDER}/id_rsa_lokum_ubuntu.key -v"
+                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False; export CLUSTER_NAME=lokum; cd /lokum/emma/vars; sh ./create_vars_files.sh; cd /lokum/emma; ansible-playbook -i ${var.DEPLOY_FOLDER}/hosts.yaml --extra-vars 'CLUSTER_NAME=lokum' install_platform_light.yml --tags 'common,minio,hadoop,spark,dask' --skip-tags 'jupyterhub,pdal,geotrellis,cassandra,geomesa' --private-key=${var.DEPLOY_FOLDER}/id_rsa_lokum_ubuntu.key -v"
         }
 
         provisioner "local-exec" {
-                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False; export CLUSTER_NAME=lokum; cd /lokum/emma/vars; sh ./create_vars_files.sh; cd /lokum/emma; ansible-playbook -i ${var.DEPLOY_FOLDER}/hosts.yaml --extra-vars 'CLUSTER_NAME=lokum' start_platform.yml --skip-tags 'cassandra' --private-key=${var.DEPLOY_FOLDER}/id_rsa_lokum_ubuntu.key -v"
+                command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False; export CLUSTER_NAME=lokum; cd /lokum/emma/vars; sh ./create_vars_files.sh; cd /lokum/emma; ansible-playbook -i ${var.DEPLOY_FOLDER}/hosts.yaml --extra-vars 'CLUSTER_NAME=lokum' start_platform.yml --skip-tags 'jupyterhub,cassandra' --private-key=${var.DEPLOY_FOLDER}/id_rsa_lokum_ubuntu.key -v"
         }
 }
 
