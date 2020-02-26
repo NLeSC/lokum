@@ -66,6 +66,24 @@ or
 ssh -i ./deployment/cluster0/id_rsa_lokum_ubuntu.key ubuntu@SERVER_IP
 ```
 
+## Starting the services manually
+
+Run the following command in main lokum directory.
+
+```bash
+docker run --rm --net=host -it \
+  -v $(pwd)/config:/lokum/config \
+  -v $(pwd)/deployment:/lokum/deployment \
+  nlesc/lokum:latest
+```
+
+```bash
+DEPLOYMENT_DIR=/lokum/deployment/cluster0; ANSIBLE_HOST_KEY_CHECKING=False; export CLUSTER_NAME=lokum; cd /lokum/emma/vars; sh ./create_vars_files.sh; cd /lokum/emma; ansible-playbook -i ${DEPLOYMENT_DIR}/hosts.yaml --extra-vars 'CLUSTER_NAME=lokum' start_platform.yml --skip-tags 'jupyterhub,cassandra' --private-key=${DEPLOYMENT_DIR}/id_rsa_lokum_ubuntu.key -v
+```
+
+To check Apache Spark open the link below in a browser:
+http://NODE_1_IP:8080/
+
 ## TODO
 
 - Fix repeated common tasks
