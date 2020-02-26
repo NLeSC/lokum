@@ -84,27 +84,3 @@ DEPLOYMENT_DIR=/lokum/deployment/cluster0; ANSIBLE_HOST_KEY_CHECKING=False; expo
 To check Apache Spark open the link below in a browser:
 http://NODE_1_IP:8080/
 
-## TODO
-
-- Fix repeated common tasks
-- TASK [hadoop : Format namenode] FAILS for node1
-  check config files in:
-  /lokum/emma/roles/hadoop/templates
-- fix minio_access_key and minio_secret_key in  /lokum/emma/vars/minio_vars.yml.template
-- Update hadoop to 3.X.X  # in 3.2.0 hdfs starting procedure changed!
-- Fix Cassandra:
-  add GPG key --> A278B781FE4B2BDA
-- Implement interactive deployment (ask user questions about the services)
-- Make some services, for example GDAL, optional
-- Fix emma roles that are installing packages using loop. Example:
-
-```bash
-- name: Install basic packages
-  package:
-    name: ['vim','bash-completion','tmux','tree','htop','wget','unzip','curl','git']
-    state: present
-```
-
-- Setup a firewall
-- Add an example for custom software deployment
-- Add links and credits
