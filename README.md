@@ -1,5 +1,23 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3482939.svg)](https://doi.org/10.5281/zenodo.3482939)
 
+# Badges
+
+| fair-software.nl recommendations | Badge |
+|:-|:-:|
+| [1. Code Repository](https://fair-software.nl/recommendations/repository) | [![dd](https://img.shields.io/github/last-commit/xenon-middleware/xenon-cli)](https://img.shields.io/github/last-commit/xenon-middleware/xenon-cli) |
+| [2. License](https://fair-software.nl/recommendations/license) | [![aa](https://img.shields.io/github/license/citation-file-format/cff-converter-python)]((https://img.shields.io/github/license/citation-file-format/cff-converter-python))  |
+| [3. Community Registry](https://fair-software.nl/recommendations/registry) | [![Research Software Directory](https://img.shields.io/badge/rsd-xenon-00a3e3.svg)](https://www.research-software.nl/software/xenon) |
+| [4. Enable Citation](https://fair-software.nl/recommendations/citation) | [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1154130.svg)](https://doi.org/10.5281/zenodo.1154130) |
+| [5. Code Quality Checklist](https://fair-software.nl/recommendations/checklist) | [![cii best practices](https://bestpractices.coreinfrastructure.org/projects/1811/badge)](https://bestpractices.coreinfrastructure.org/projects/1811)  |
+| **Other** | **Badge** |
+| Continuous Integration | [![Build Status](https://travis-ci.org/research-software-directory/research-software-directory.svg?branch=master)](https://travis-ci.org/research-software-directory/research-software-directory) [![Build status](https://ci.appveyor.com/api/projects/status/vki0xma8y7glpt09/branch/master?svg=true)](https://ci.appveyor.com/project/NLeSC/xenon-cli/branch/master)  |
+
+
+
+
+
+
+
 # Lokum
 
 This repository includes scripts to deploy a cluster with GlusterFS, Docker, Spark and JupyterHub services on bare-metal. Currently, it only supports Opennebula platform.
